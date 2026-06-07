@@ -28,9 +28,9 @@ import websockets
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
-# ---- your Supabase details (already filled in from your project) ----
-SUPABASE_URL = "https://kjvjalzuugfkmyplbjzo.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtqdmphbHp1dWdma215cGxianpvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyMzA2NTAsImV4cCI6MjA5NTgwNjY1MH0.3D5VIinRrUyf21gXksnMY7P7EAlKOYNm0ksGMsJF-J0"
+SUPABASE_URL = os.environ.get('SUPABASE_URL')# ---- your Supabase details (already filled in from your project) ----
+
+SUPABASE_KEY = os.environ.get('SUPABASE_KEY')
 
 SYMBOL = "BTCUSDT"
 TF = "1h"
