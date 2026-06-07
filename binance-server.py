@@ -20,6 +20,7 @@ RUN:
 Then open the chart at http://localhost:3000/live-chart-final.html
 (see the README for the http.server step).
 """
+import os
 import asyncio
 import json
 
