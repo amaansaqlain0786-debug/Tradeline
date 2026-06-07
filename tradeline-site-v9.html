@@ -460,8 +460,8 @@
 <script>
 // ===================== DATA (simulated) =====================
 const MARKETS={
-  Crypto:[["BTC/USD","Bitcoin",68420,0],["ETH/USD","Ethereum",3782.4,1],["SOL/USD","Solana",168.9,1],["XRP/USD","XRP",0.5241,4],["BNB/USD","BNB",592.1,1],["DOGE/USD","Dogecoin",0.1542,4]],
-  Forex:[["EUR/USD","Euro / Dollar",1.0842,4],["GBP/USD","Pound / Dollar",1.2718,4],["USD/JPY","Dollar / Yen",156.31,2],["AUD/USD","Aussie / Dollar",0.6634,4],["USD/CAD","Dollar / Loonie",1.3672,4]],
+  Crypto:[["BTC/USD","Bitcoin",68420,0],["ETH/USD","Ethereum",3782.4,1],["SOL/USD","Solana",168.9,1],["XRP/USD","XRP",0.5241,4],["BNB/USD","BNB",592.1,1],["ADA/USD","Cardano",0.4521,4],["DOGE/USD","Dogecoin",0.1542,4],["AVAX/USD","Avalanche",36.18,2],["DOT/USD","Polkadot",7.12,3],["LINK/USD","Chainlink",17.84,2]],
+  Forex:[["EUR/USD","Euro / Dollar",1.0842,4],["GBP/USD","Pound / Dollar",1.2718,4],["USD/JPY","Dollar / Yen",156.31,2],["USD/CHF","Dollar / Franc",0.8912,4],["AUD/USD","Aussie / Dollar",0.6634,4],["USD/CAD","Dollar / Loonie",1.3672,4],["NZD/USD","Kiwi / Dollar",0.6128,4],["EUR/GBP","Euro / Pound",0.8524,4],["EUR/JPY","Euro / Yen",169.48,2],["GBP/JPY","Pound / Yen",198.82,2],["CHF/JPY","Franc / Yen",175.36,2],["AUD/JPY","Aussie / Yen",103.71,2],["CAD/JPY","Loonie / Yen",114.32,2],["EUR/CHF","Euro / Franc",0.9663,4],["EUR/AUD","Euro / Aussie",1.6342,4],["GBP/CHF","Pound / Franc",1.1336,4]],
   Indices:[["NAS100","Nasdaq 100",18942.5,1],["SPX500","S&P 500",5301.2,1],["US30","Dow Jones",39112,0],["GER40","DAX 40",18712,1],["UK100","FTSE 100",8237.4,1],["XAU/USD","Gold",2418.56,2],["WTI/USD","Crude Oil",78.42,2]],
   Stocks:[["AAPL","Apple",191.45,2],["NVDA","Nvidia",124.30,2],["TSLA","Tesla",178.62,2],["MSFT","Microsoft",429.04,2],["AMZN","Amazon",185.57,2]]
 };
@@ -475,31 +475,35 @@ function seed(base,n,vol){let p=base;const a=[];for(let i=0;i<n;i++){const o=p;c
 for(const cat in MARKETS){MARKETS[cat].forEach(([sym,name,price,dp])=>{const c=seed(price,120,.006);feed[sym]={sym,name,price:c[c.length-1].c,prev:price,dp,cat,candles:c};});}
 
 // ===================== LIVE DATA (your DigitalOcean server) =====================
-// BTC/USD streams live from your binance-server.py. Everything else stays
+// 10 cryptos stream live from binance-server.py. Forex/indices/stocks stay
 // simulated until licensed feeds are added. The server sends:
-//   {"type":"candle","candle":{t,o,h,l,c,v,closed}}
+//   {"type":"candle","symbol":"BTC/USD","candle":{t,o,h,l,c,v,closed}}
 const LIVE_WS = "ws://68.183.38.180:8000/ws";
-const LIVE_SYMBOL = "BTC/USD";
-let liveConnected = false;
-function setLiveStatus(on){
-  liveConnected=on;
-  const el=document.getElementById("clock");
-  // (status strip already shows feed LIVE; nothing required here)
-}
-// 1) seed BTC history from Binance REST so the chart has real candles immediately
+// website symbol -> Binance REST symbol (for loading history)
+const LIVE_MAP = {
+  "BTC/USD":"BTCUSDT","ETH/USD":"ETHUSDT","SOL/USD":"SOLUSDT","XRP/USD":"XRPUSDT",
+  "BNB/USD":"BNBUSDT","ADA/USD":"ADAUSDT","DOGE/USD":"DOGEUSDT","AVAX/USD":"AVAXUSDT",
+  "DOT/USD":"DOTUSDT","LINK/USD":"LINKUSDT"
+};
+let liveConnected=false;
+function setLiveStatus(on){liveConnected=on;}
+// 1) seed history for every live crypto from Binance REST so charts fill instantly
 async function loadLiveHistory(){
-  try{
-    const r=await fetch("https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=200");
-    const kl=await r.json();
-    if(Array.isArray(kl)&&kl.length){
-      const cs=kl.map(k=>({o:+k[1],h:+k[2],l:+k[3],c:+k[4]}));
-      const f=feed[LIVE_SYMBOL];
-      f.candles=cs;f.price=cs[cs.length-1].c;f.prev=cs[cs.length-2]?cs[cs.length-2].c:f.price;f.live=true;f.ts=Math.floor(kl[kl.length-1][0]/1000);
-      refreshIfVisible();
-    }
-  }catch(e){ /* stay on simulated until ws connects */ }
+  await Promise.all(Object.keys(LIVE_MAP).map(async disp=>{
+    if(!feed[disp])return;
+    try{
+      const r=await fetch(`https://api.binance.com/api/v3/klines?symbol=${LIVE_MAP[disp]}&interval=1h&limit=200`);
+      const kl=await r.json();
+      if(Array.isArray(kl)&&kl.length){
+        const cs=kl.map(k=>({o:+k[1],h:+k[2],l:+k[3],c:+k[4]}));
+        const f=feed[disp];
+        f.candles=cs;f.price=cs[cs.length-1].c;f.prev=cs[cs.length-2]?cs[cs.length-2].c:f.price;f.live=true;f.ts=Math.floor(kl[kl.length-1][0]/1000);
+      }
+    }catch(e){ /* leave simulated for this one */ }
+  }));
+  refreshIfVisible();
 }
-// 2) live stream from your server
+// 2) one live stream from your server, routed to the right symbol
 function connectLive(){
   let ws;
   try{ ws=new WebSocket(LIVE_WS); }catch(e){ setTimeout(connectLive,4000); return; }
@@ -509,16 +513,17 @@ function connectLive(){
   ws.onmessage=ev=>{
     let m;try{ m=JSON.parse(ev.data); }catch(e){ return; }
     if(!m||m.type!=="candle"||!m.candle)return;
-    const k=m.candle,f=feed[LIVE_SYMBOL];f.live=true;
+    const disp=m.symbol||"BTC/USD";const f=feed[disp];if(!f)return;f.live=true;
+    const k=m.candle;
     if(f.ts===k.t){const c=f.candles[f.candles.length-1];c.h=k.h;c.l=k.l;c.c=k.c;}
     else{f.candles.push({o:k.o,h:k.h,l:k.l,c:k.c});if(f.candles.length>400)f.candles.shift();f.ts=k.t;}
     f.prev=f.price;f.price=k.c;
-    refreshIfVisible();
+    refreshIfVisible(disp);
   };
 }
-function refreshIfVisible(){
+function refreshIfVisible(disp){
   if(document.getElementById("page-home").classList.contains("active")){drawOv&&drawOv();renderMovers&&renderMovers();}
-  if(cvSym===LIVE_SYMBOL&&document.getElementById("page-chart").classList.contains("active"))drawTV&&drawTV();
+  if(cvSym&&feed[cvSym]&&feed[cvSym].live&&document.getElementById("page-chart").classList.contains("active"))drawTV&&drawTV();
 }
 
 const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
